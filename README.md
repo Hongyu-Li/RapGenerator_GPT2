@@ -79,7 +79,7 @@ Is it amazing? It really surprised me somehow!
 
 ### Acknowledge
 
-Again, a lot of codes in this repo are borrowed heavily from [GPT2-Chinese](https://github.com/Morizeyao/GPT2-Chinese). If you want to know more about GPT2-Chinese, I strongly recommend that you should read the original code in that repo. 
+Again, a lot of codes in this repo are borrowed heavily from [GPT2-Chinese](https://github.com/Morizeyao/GPT2-Chinese). If you want to know more about GPT2-Chinese, I strongly recommend that you should read the original code in that repo. And a big THANK YOU to [google colab](https://colab.research.google.com/) for their free GPU support! All of my training, preprocessing and scrapping processes were done on colab. It's really amazing! One thing needed to state, the idea of rhyme scheme was inspired by [Tong-Music](https://github.com/jianyq/Tong-Music). This author also did a lot of works on lyrics generation, if you're interested, please don't be hesitated to check it!
 
 ### Something Else...
 
