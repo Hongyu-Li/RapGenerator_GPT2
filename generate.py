@@ -4,7 +4,9 @@ import os
 import argparse
 from tqdm import trange
 from transformers import GPT2LMHeadModel
-
+from pypinyin import lazy_pinyin
+from pypinyin.style._utils import get_finals
+from search_rhyme import *
 
 def is_word(word):
     for item in list(word):
@@ -67,8 +69,46 @@ def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')
         logits[indices_to_remove] = filter_value
     return logits
 
+def sample_sequence_with_rhyme(model, context, length, n_ctx, rhyme_pattern,tokenizer,
+                    temperature=1.0, top_k=30, top_p=0.0, repitition_penalty=1.0,
+                    device='cpu'):
+    rollback_pos = len(context)
+    context = torch.tensor(context, dtype=torch.long, device=device)
+    context = context.unsqueeze(0)
+    generated = context
+    generated_length = 0
+    rhyme_record = {i: 0 for i in set(rhyme_pattern)}
+    with torch.no_grad():
+        while generated_length < length:
+            # print('now is:{}'.format(sent_length))
+            # print(generated)
+            inputs = {'input_ids': generated[0][-(n_ctx - 1):].unsqueeze(0)}
+            outputs = model(
+                **inputs)  # Note: we could also use 'past' with GPT-2/Transfo-XL/XLNet (cached hidden-states)
+            next_token_logits = outputs[0][0, -1, :]
+            for id in set(generated):
+                next_token_logits[id] /= repitition_penalty
+            next_token_logits = next_token_logits / temperature
+            next_token_logits[tokenizer.convert_tokens_to_ids('[UNK]')] = -float('Inf')
+            filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
+            next_token = torch.multinomial(F.softmax(filtered_logits, dim=-1), num_samples=1)
+            generated = torch.cat((generated, next_token.unsqueeze(0)), dim=1)
+            curr_text = tokenizer.convert_ids_to_tokens(generated.tolist()[0])
+            if curr_text[-1] == '[CLS]' or curr_text[-1] == ',' or curr_text[-1] == '[SEP]' or curr_text[-1] == '?' or curr_text[-1] == '!' or curr_text[-1] == '.':
+                if get_rhyme(curr_text[-2]) == 0:
+                    generated = generated[0][:rollback_pos].unsqueeze(0)
+                elif rhyme_record[rhyme_pattern[generated_length]] == 0:
+                    rhyme_record[rhyme_pattern[generated_length]] = get_rhyme(curr_text[-2])
+                    generated_length += 1
+                    rollback_pos = len(curr_text)
+                elif rhyme_record[rhyme_pattern[generated_length]] != get_rhyme(curr_text[-2]):
+                    generated = generated[0][:rollback_pos].unsqueeze(0)
+                else:
+                    generated_length += 1
+                    rollback_pos = len(curr_text)
+    return generated.tolist()[0]
 
-def sample_sequence(model, context, length, n_ctx, tokenizer, temperature=1.0, top_k=30, top_p=0.0, repitition_penalty=1.0,
+def sample_sequence_without_rhyme(model, context, length, n_ctx, tokenizer, rhyme_pattern, temperature=1.0, top_k=30, top_p=0.0, repitition_penalty=1.0,
                     device='cpu'):
     context = torch.tensor(context, dtype=torch.long, device=device)
     context = context.unsqueeze(0)
@@ -88,43 +128,20 @@ def sample_sequence(model, context, length, n_ctx, tokenizer, temperature=1.0, t
             generated = torch.cat((generated, next_token.unsqueeze(0)), dim=1)
     return generated.tolist()[0]
 
-
-def fast_sample_sequence(model, context, length, temperature=1.0, top_k=30, top_p=0.0, device='cpu'):
-    inputs = torch.LongTensor(context).view(1, -1).to(device)
-    if len(context) > 1:
-        _, past = model(inputs[:, :-1], None)[:2]
-        prev = inputs[:, -1].view(1, -1)
-    else:
-        past = None
-        prev = inputs
-    generate = [] + context
-    with torch.no_grad():
-        for i in trange(length):
-            output = model(prev, past=past)
-            output, past = output[:2]
-            output = output[-1].squeeze(0) / temperature
-            filtered_logits = top_k_top_p_filtering(output, top_k=top_k, top_p=top_p)
-            next_token = torch.multinomial(torch.softmax(filtered_logits, dim=-1), num_samples=1)
-            generate.append(next_token.item())
-            prev = next_token.view(1, 1)
-    return generate
-
-
 # 通过命令行参数--fast_pattern，指定模式
-def generate(n_ctx, model, context, length, tokenizer, temperature=1, top_k=0, top_p=0.0, repitition_penalty=1.0, device='cpu',
-             is_fast_pattern=False):
-    if is_fast_pattern:
-        return fast_sample_sequence(model, context, length, temperature=temperature, top_k=top_k, top_p=top_p,
-                                    device=device)
+def generate(n_ctx, model, context, length, rhyme_pattern, tokenizer, lucky_mode=False, temperature=1, top_k=0, top_p=0.0, repitition_penalty=1.0, device='cpu'):
+    if lucky_mode:
+        return sample_sequence_without_rhyme(model, context, length, n_ctx, tokenizer, rhyme_pattern, temperature=temperature, top_k=top_k, top_p=top_p,
+                               repitition_penalty=repitition_penalty, device=device)
     else:
-        return sample_sequence(model, context, length, n_ctx, tokenizer=tokenizer, temperature=temperature, top_k=top_k, top_p=top_p,
+        return sample_sequence_with_rhyme(model, context, length, n_ctx, rhyme_pattern, tokenizer=tokenizer, temperature=temperature, top_k=top_k, top_p=top_p,
                                repitition_penalty=repitition_penalty, device=device)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', default='0,1,2,3', type=str, required=False, help='生成设备')
-    parser.add_argument('--length', default=-1, type=int, required=False, help='生成长度')
+    parser.add_argument('--length', default=4, type=int, required=False, help='生成歌词句子数')
     parser.add_argument('--batch_size', default=1, type=int, required=False, help='生成的batch size')
     parser.add_argument('--nsamples', default=10, type=int, required=False, help='生成几个样本')
     parser.add_argument('--temperature', default=1, type=float, required=False, help='生成温度')
@@ -137,10 +154,11 @@ def main():
     parser.add_argument('--prefix', default='萧炎', type=str, required=False, help='生成文章的开头')
     parser.add_argument('--no_wordpiece', action='store_true', help='不做word piece切词')
     parser.add_argument('--segment', action='store_true', help='中文以词为单位')
-    parser.add_argument('--fast_pattern', action='store_true', help='采用更加快的方式生成文本')
     parser.add_argument('--save_samples', action='store_true', help='保存产生的样本')
     parser.add_argument('--save_samples_path', default='.', type=str, required=False, help="保存样本的路径")
     parser.add_argument('--repetition_penalty', default=1.0, type=float, required=False)
+    parser.add_argument('--lucky_mode', action='store_true', help='乐透模式')
+    parser.add_argument('--rhyme_pattern', default='AAAA', required=False, type=str, help="押韵模式")
 
     args = parser.parse_args()
     print('args:\n' + args.__repr__())
@@ -158,6 +176,8 @@ def main():
     topk = args.topk
     topp = args.topp
     repetition_penalty = args.repetition_penalty
+    rhyme_pattern = args.rhyme_pattern
+    lucky_mode = args.lucky_mode
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -168,8 +188,6 @@ def main():
 
     n_ctx = model.config.n_ctx
 
-    if length == -1:
-        length = model.config.n_ctx
     if args.save_samples:
         if not os.path.exists(args.save_samples_path):
             os.makedirs(args.save_samples_path)
@@ -184,8 +202,13 @@ def main():
                 model=model,
                 context=context_tokens,
                 length=length,
-                is_fast_pattern=args.fast_pattern, tokenizer=tokenizer,
-                temperature=temperature, top_k=topk, top_p=topp, repitition_penalty=repetition_penalty, device=device
+                lucky_mode=args.lucky_mode,
+                rhyme_pattern=rhyme_pattern,
+                tokenizer=tokenizer,
+                temperature=temperature,
+                top_k=topk, top_p=topp,
+                repitition_penalty=repetition_penalty,
+                device=device
             )
             for i in range(batch_size):
                 generated += 1
@@ -200,6 +223,8 @@ def main():
                         text[i] = '\n\n'
                     elif item == '[SEP]':
                         text[i] = '\n'
+                    elif item == '@':
+                        text[i] = ' '
                 info = "=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40 + "\n"
                 print(info)
                 text = ''.join(text).replace('##', '').strip()
