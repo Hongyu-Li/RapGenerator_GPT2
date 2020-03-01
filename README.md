@@ -38,7 +38,7 @@ My final model and specific configuration could be found in `model/final_model/`
 
 Here, in order to generate rap with rhyme, I revised the original `generate.py` in GPT2-Chinese. In my script, I used the **rollback scheme** to rhyme the generated lyrics. That is to say, if the last word of one sentence does not follow the rhyme pattern user input, the generator would roll back to the last sentence and then regenerate a new line. 
 
-And what's more, my gernerator supports two modes, lucky mode and lucky mode. How to use them? 
+And what's more, my gernerator supports two modes, lucky mode and unlucky mode. How to use them? 
 
 * Lucky model = 'I do not care about rhyme. Just give me something!'
 
@@ -48,7 +48,7 @@ And what's more, my gernerator supports two modes, lucky mode and lucky mode. Ho
 
   Here, length is the total length of generated text. 
 
-* Unlucky mode = 'I could accept the rap lyrics without rhyme!'
+* Unlucky mode = 'I could not accept the rap lyrics without rhyme!'
 
   ```shell
   !python ./generate.py --length=7 --nsamples=1 --prefix='争执不断' --rhyme_pattern='ABABCCC' 
