@@ -40,7 +40,7 @@ The final model is too large to be unploaded in Github, so you could download it
 
 Here, in order to generate rap with rhyme, I revised the original `generate.py` in GPT2-Chinese. In my script, I used the **rollback scheme** to rhyme the generated lyrics. That is to say, if the last word of one sentence does not follow the rhyme pattern user input, the generator would roll back to the last sentence and then regenerate a new line. 
 
-And what's more, my gernerator supports two modes, lucky mode and lucky mode. How to use them? 
+And what's more, my gernerator supports two modes, lucky mode and unlucky mode. How to use them? 
 
 * Lucky model = 'I do not care about rhyme. Just give me something!'
 
@@ -50,7 +50,7 @@ And what's more, my gernerator supports two modes, lucky mode and lucky mode. Ho
 
   Here, length is the total length of generated text. 
 
-* Unlucky mode = 'I could accept the rap lyrics without rhyme!'
+* Unlucky mode = 'I could not accept the rap lyrics without rhyme!'
 
   ```shell
   !python ./generate.py --length=7 --nsamples=1 --prefix='争执不断' --rhyme_pattern='ABABCCC' 
@@ -81,7 +81,7 @@ Is it amazing? It really surprised me somehow!
 
 ### Acknowledge
 
-Again, a lot of codes in this repo are borrowed heavily from [GPT2-Chinese](https://github.com/Morizeyao/GPT2-Chinese). If you want to know more about GPT2-Chinese, I strongly recommend that you should read the original code in that repo. 
+Again, a lot of codes in this repo are borrowed heavily from [GPT2-Chinese](https://github.com/Morizeyao/GPT2-Chinese). If you want to know more about GPT2-Chinese, I strongly recommend that you should read the original code in that repo. And a big THANK YOU to [google colab](https://colab.research.google.com/) for their free GPU support! All of my training, preprocessing and scrapping processes were done on colab. It's really amazing! One thing needed to state, the idea of rhyme scheme was inspired by [Tong-Music](https://github.com/jianyq/Tong-Music). This author also did a lot of works on lyrics generation, if you're interested, please don't be hesitated to check it!
 
 ### Something Else...
 
