@@ -34,6 +34,8 @@ My final model and specific configuration could be found in `model/final_model/`
 
 ![](./figs/loss.png)
 
+The final model is too large to be unploaded in Github, so you could download it [here](https://drive.google.com/open?id=1vv3QqbebLY9BBbfFXtjWV5C_eVDIL7kM).
+
  ### Generate Rap
 
 Here, in order to generate rap with rhyme, I revised the original `generate.py` in GPT2-Chinese. In my script, I used the **rollback scheme** to rhyme the generated lyrics. That is to say, if the last word of one sentence does not follow the rhyme pattern user input, the generator would roll back to the last sentence and then regenerate a new line. 
