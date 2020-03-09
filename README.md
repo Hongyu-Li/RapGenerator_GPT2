@@ -87,7 +87,7 @@ Again, a lot of codes in this repo are borrowed heavily from [GPT2-Chinese](http
 
 Now this is just an alpha version of this repo. Next, I would like to:
 
-* Make it browser-interactive
+* ~~Make it browser-interactive~~(Check in [here](https://github.com/Hongyu-Li/MC_Sandwich_Generator))
 * Keep improving the performance of the model
 
 
